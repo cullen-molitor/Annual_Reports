@@ -1,0 +1,34 @@
+SiteNumber,IslandCode,IslandName,SiteCode,SiteName,ReserveStatus,Latitude,Longitude,MeanDepth,Color,LineType,Color2,ARMs,Bath,Reference,Color3
+1,SM,San Miguel Island,WL,Wyckoff Ledge,Outside,34.5901063888889,122.39341,43.27,red2,solid,slateblue4,FALSE,FALSE,FALSE,NA
+2,SM,San Miguel Island,HR,Hare Rock,Inside,34.4664255555556,122.104645833334,20.5,blue2,dashed,darkorchid1,FALSE,FALSE,FALSE,NA
+3,SR,Santa Rosa Island,JLNO,Johnson's Lee North,Outside,34.5984444444445,122.104126388889,33.18,red2,solid,deepskyblue,TRUE,FALSE,TRUE,NA
+4,SR,Santa Rosa Island,JLSO,Johnson's Lee South,Outside,34.6735980555556,121.750201388889,46.72,blue2,solid,deepskyblue4,TRUE,FALSE,TRUE,NA
+5,SR,Santa Rosa Island,RR,Rodes Reef,Outside,34.6144805555555,121.544117777778,44.77,green3,solid,blue,FALSE,FALSE,FALSE,NA
+6,SC,Santa Cruz Island,GI,Gull Island South,Inside,34.5746811111111,121.423912222222,52,red2,dashed,chartreuse,TRUE,FALSE,FALSE,NA
+7,SC,Santa Cruz Island,FH,Fry's Harbor,Outside,34.5748019444444,121.344929722222,40.82,blue2,solid,chartreuse4,TRUE,FALSE,FALSE,NA
+8,SC,Santa Cruz Island,PB,Pelican Bay,Outside,34.0452736111111,121.011569444444,21.33,green3,solid,darkolivegreen3,TRUE,FALSE,FALSE,NA
+9,SC,Santa Cruz Island,SA,Scorpion Anchorage,Inside,34.5890838888889,122.398256111111,15.45,deepskyblue2,dashed,darkgreen,TRUE,TRUE,TRUE,NA
+10,SC,Santa Cruz Island,YB,Yellow Banks,Outside,34.4735561111111,122.157794444444,50.67,yellow2,solid,forestgreen,TRUE,FALSE,FALSE,NA
+11,AN,Anacapa Island,AR,Admiral's Reef,Outside,34.4597480555555,122.112854444444,44.36,red2,solid,gold,TRUE,TRUE,TRUE,NA
+12,AN,Anacapa Island,CC,Cathedral Cove,Inside,34.6197380555556,121.574897777778,26.45,blue2,dashed,gold3,TRUE,TRUE,TRUE,NA
+13,AN,Anacapa Island,LC,Landing Cove,Inside,34.6114561111111,121.534538333333,24.25,green3,dashed,yellow,TRUE,TRUE,TRUE,NA
+14,SB,Santa Barbara Island,SESL,SE Sea Lion Rookery,Inside,34.5831583333334,121.421779722223,43.09,red2,dashed,darkred,FALSE,FALSE,TRUE,NA
+15,SB,Santa Barbara Island,AP,Arch Point,Outside,34.5795016666667,121.378500277777,24.82,blue2,solid,firebrick1,FALSE,FALSE,TRUE,NA
+16,SB,Santa Barbara Island,CAT,Cat Canyon,Outside,34.0377344444444,121.045980277778,25.91,green3,solid,violetred,FALSE,FALSE,TRUE,NA
+21,SM,San Miguel Island,MM,Miracle Mile,Outside,33.4629333333333,119.031266666667,27.55,green3,solid,darkmagenta,TRUE,FALSE,FALSE,NA
+22,SR,Santa Rosa Island,CP,Cluster Point,Outside,0,0,45.33,deepskyblue2,solid,turquoise1,FALSE,FALSE,TRUE,NA
+23,SR,Santa Rosa Island,TC,Trancion Canyon,Inside,0,0,42.18,yellow2,dashed,turquoise4,FALSE,FALSE,TRUE,NA
+24,SR,Santa Rosa Island,CSAW,Chickasaw,Inside,0,0,36.6,darkgreen,dashed,steelblue1,FALSE,FALSE,TRUE,NA
+25,SR,Santa Rosa Island,SP,South Point,Inside,0,0,41.09,darkorange3,dashed,steelblue4,FALSE,FALSE,TRUE,NA
+26,SC,Santa Cruz Island,DPM,Devil's Peak Member,Outside,0,0,38.45,darkgreen,solid,lightgreen,FALSE,TRUE,TRUE,NA
+27,SC,Santa Cruz Island,PP,Potato Pasture,Inside,0,0,37,darkorange3,dashed,limegreen,FALSE,TRUE,TRUE,NA
+28,SC,Santa Cruz Island,CVP,Cavern Point,Inside,0,0,40,darkseagreen4,dashed,palegreen4,FALSE,TRUE,TRUE,NA
+29,SC,Santa Cruz Island,LS,Little Scorpion,Outside,0,0,37.82,darkslategrey,solid,seagreen3,FALSE,TRUE,TRUE,NA
+30,SC,Santa Cruz Island,PRF,Pedro Reef,Outside,0,0,29.73,black,solid,green,FALSE,TRUE,TRUE,NA
+31,AN,Anacapa Island,KH,Keyhole,Inside,0,0,29.64,deepskyblue2,dotted,yellow3,FALSE,TRUE,TRUE,NA
+32,AN,Anacapa Island,EFC,East Fish Camp,Outside,0,0,38.09,yellow2,solid,palegoldenrod,FALSE,TRUE,TRUE,NA
+33,AN,Anacapa Island,BSBR,Black Sea Bass Reef,Inside,0,0,53.18,darkgreen,dashed,orange,FALSE,TRUE,TRUE,NA
+34,AN,Anacapa Island,LH,Lighthouse,Outside,0,0,27.91,darkorange3,solid,darkgoldenrod2,FALSE,TRUE,TRUE,NA
+35,SB,Santa Barbara Island,WA,Webster's Arch,Outside,0,0,48.18,deepskyblue2,solid,red,FALSE,FALSE,TRUE,NA
+36,SB,Santa Barbara Island,GC,Graveyard Canyon,Inside,0,0,38.14,yellow2,dashed,deeppink,FALSE,FALSE,TRUE,NA
+37,SB,Santa Barbara Island,SER,Southeast Reef,Inside,0,0,38.73,darkgreen,dashed,deeppink4,TRUE,FALSE,TRUE,NA

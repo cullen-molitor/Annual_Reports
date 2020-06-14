@@ -1,3 +1,6 @@
+# Raw Text Files
+/Raw_DB_Files_SAVE_HERE
+
 # History files
 .Rhistory
 .Rapp.history
@@ -37,10 +40,3 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
-
-# exclude everything
-Tidy_Data_Dont_Touch/*
-Raw_DB_Files_SAVE_HERE/*
-
-# exception to the rule
-!Raw_DB_Files_SAVE_HERE/.gitkeep 

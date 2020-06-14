@@ -1,0 +1,85 @@
+---
+output: 
+  word_document:
+    reference_docx: Meta_Data/template.docx
+---
+# Appendix NA Natural Habitat Size Frequency Data
+
+The temperature graphs are divided into a right graph and left graph. The left graph displays the mean daily temperature, as well as the daily temperature range, for the current year. The right graph displays temperature values for the current year compared to past years. Blue diamonds indicate the mean monthly temperatures for the current year. Violin plots indicate the distribution of all past years monthly mean temperature values. If more than seven days of temperature values are missing from any month, due to instrument loss or failure, all temperature values for that particular month/year are excluded. Graphs are ordered by site longitude, from west to east.
+
+```{r NHSF setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("global_markdown.R")
+nhsf_Summary <-  readr::read_csv("Tidy_Data_Dont_Touch/NHSF_Summary.csv") %>% 
+  dplyr::filter(SurveyYear <= Export_END_Year)
+nhsf_Summary$SiteName <- factor(nhsf_Summary$SiteName, levels = SiteLevels)
+nhsf_Summary$IslandName <- factor(nhsf_Summary$IslandName, levels = IslandLevels)
+nhsf_Summary$CommonName <- factor(nhsf_Summary$CommonName, levels = unique(nhsf_Summary$CommonName))
+nhsf_Drop_Special_Cases <- nhsf_Summary %>%
+  dplyr::filter(!is.na(CommonName),
+                CommonName != "red abalone",
+                CommonName != "pink abalone",
+                CommonName != "green abalone",
+                CommonName != "threaded abalone",
+                CommonName != "chestnut cowrie",
+                CommonName != "California hydrocoral",
+                CommonName != "warty sea cucumber",
+                CommonName != "Coronado urchin",
+                CommonName != "red gorgonian",
+                CommonName != "California golden gorgonian",
+                CommonName != "brown gorgonian") %>%
+  droplevels()
+```
+```{r NHSF Plots, echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=15}
+for (i in levels(nhsf_Drop_Special_Cases$CommonName)) {
+  nhsf_filtered_data <- nhsf_Drop_Special_Cases %>%
+    dplyr::filter(CommonName == i)  %>% 
+    dplyr::mutate(Max_Mean = max(Mean_Size))
+  nhsf_split <- split(nhsf_filtered_data, f = nhsf_filtered_data$IslandName) 
+  p1 <- ggplot(nhsf_split$`San Miguel Island`,
+               aes(x = Date, y = Mean_Size, color = SiteName, linetype = SiteName)) + 
+    geom_line(size = 1) +
+    scale_x_date(date_labels = "%Y", date_breaks = '1 year',
+                 expand = expansion(mult = c(0.01, .01))) +
+    scale_y_continuous(limits = c(0, nhsf_split$`San Miguel Island`$Max_Mean), 
+                       expand = expansion(mult = c(0, .1))) +
+    labs(title = nhsf_split$`San Miguel Island`$ScientificName,  
+         subtitle = nhsf_split$`San Miguel Island`$CommonName,
+         color = "Site Name", linetype = "Site Name",
+         x = NULL, y = NULL) +
+    facet_grid(rows = vars(IslandName), scales = "fixed") +
+    scale_color_manual(values = SiteColor, guide = guide_legend(ncol = 1)) +
+    scale_linetype_manual(values = SiteLine, guide = guide_legend(ncol = 1)) +
+    theme_classic2() +
+    theme(plot.title = element_text(hjust = 0.5, size = 22, face = "bold.italic"),
+          plot.subtitle = element_text(hjust = 0.5, size = 16, face = "bold"),legend.position = "right",
+          panel.grid.major = element_line(),
+          legend.justification = c(0,0.5),
+          legend.key.width = unit(.75, "cm"),
+          legend.background = element_rect(size = unit(5, "cm")),
+          legend.title = element_text(size = 12, color = "black"),
+          legend.text = element_text(size = 11, colour = "black"),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12, face = "bold"),
+          strip.text = element_text(size = 12, colour = "black", angle = 90))
+  p2 <- p1 %+% nhsf_split$`Santa Rosa Island` +
+    labs(title = NULL, subtitle = NULL)
+  p3 <- p1 %+% nhsf_split$`Santa Cruz Island` +
+    labs(title = NULL, subtitle = NULL)
+  p4 <- p1 %+% nhsf_split$`Anacapa Island` +
+    labs(title = NULL, subtitle = NULL)
+  p5 <- p1 %+% nhsf_split$`Santa Barbara Island`  +
+    labs(title = NULL, subtitle = NULL) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12, face = "bold"))
+  
+  plot <- ggarrange(p1, p2, p3, p4, p5, ncol = 1, align = "v", common.legend = FALSE)
+  
+  a <- annotate_figure(
+    plot,
+    bottom = text_grob("Year", color = "black", face = "bold", size = 18, hjust = .4, x = .4),
+    left = text_grob("Mean Size (mm)", color = "black", rot = 90, face = "bold", size = 18)
+  )
+  print(a)
+}
+
+```

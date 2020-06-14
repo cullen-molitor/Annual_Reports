@@ -1,0 +1,83 @@
+---
+output: 
+  word_document:
+    reference_docx: Meta_Data/template.docx
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = "Output_Documents") })
+---
+# Appendix H. Random Point Contact Data
+
+The following graphs are organized by longitude. From top to bottom the graphs descend longitudinally (west to east going down). This stratifies the islands by typical water temperatures and puts the coldest water at the top and progressively warmer water towards the bottom. These water temperatures fluctuate and this stratification does not always hold true, but it is meant to represent the general trend. Because of this stratification of the study sites, the kelp forest communities vary widely from island to island. The y-axis is fixed by the highest density of a given species to show relative abundance. 
+
+Solid lines represent sites outside of the California MPA network meaning they are unprotected from regular fishing activities. Dashed lines represent sites that are inside California State Marine Reserves (SMRs) which are no-take zones. The dotted line for Anacapa Island Keyhole lies within the Anacapa Island State Marine Conservation Area (SMCA) which is partially protected and allows the take of California spiny lobster and pelagic finfish. 
+
+If comparing MPA sites vs non-MPA sites (inside vs outside), it is important to note that some old sites began with no protection status and only gained protection as a designated MPA in 2003. These sites will appear as dashed lines even if they began when the area was not protected. In 2005 16 new sites were added to study the effects of the MPA network. For this reason, only look from 2005 and up for these comparisons. For detailed comparisons of the sites inside MPAs vs outside MPAs, please see the upcoming 5 year trend report. 
+
+```{r RPCs setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("global_markdown.R")
+rpcs_Data <- read_csv("Tidy_Data_Dont_Touch/rpcs_Summary.csv") %>% 
+  dplyr::filter(SurveyYear <= Export_END_Year)
+rpcs_Data$IslandName <- factor(rpcs_Data$IslandName, levels = unique(siteInfo1$IslandName))
+rpcs_Data$SiteName <- factor(rpcs_Data$SiteName, levels = siteInfo1$SiteName)
+rpcs_Data$CommonName <- factor(rpcs_Data$CommonName, levels = unique(rpcs_Data$CommonName))
+rpcs_Drop_Special_Cases <- rpcs_Data %>% 
+  filter(!is.na(CommonName),
+         CommonName != "macaroni sponge",
+         CommonName != "aggregated nipple sponge",
+         CommonName != "hydroids",
+         CommonName != "christmas tree worm",
+         CommonName != "barnacles",
+         CommonName != "Japanese seaweed") %>%
+  droplevels()
+```
+```{r  Random Point Contact Plots, echo=FALSE, fig.width=12, fig.height=15}
+for (i in levels(rpcs_Drop_Special_Cases$CommonName)) {
+  rpcs_filtered_data <- rpcs_Drop_Special_Cases %>%
+    filter(CommonName == i)  %>% 
+    dplyr::group_by(Species, CommonName) %>% 
+    dplyr::mutate(Max_Mean = max(Mean_Density)) %>% 
+    dplyr::ungroup() 
+  rpcs_split <- split(rpcs_filtered_data, f = rpcs_filtered_data$IslandName) 
+  p1 <- ggplot(rpcs_split$`San Miguel Island`,
+               aes(x = Date, y = Mean_Density, color = SiteName, linetype = SiteName)) + 
+    geom_line(size = 1) +
+    scale_x_date(date_labels = "%Y", date_breaks = '1 year',
+                 expand = expansion(mult = c(0.01, .01))) +
+    scale_y_continuous(limits = c(0, rpcs_split$`San Miguel Island`$Max_Mean), 
+                       expand = expansion(mult = c(0, .1))) +
+    labs(title = rpcs_split$`San Miguel Island`$ScientificName, subtitle = rpcs_split$`San Miguel Island`$CommonName,
+         color = "Site Name", linetype = "Site Name", x = NULL, y = NULL) +
+    facet_grid(rows = vars(IslandName), scales = "fixed") +
+    scale_color_manual(values = SiteColor, guide = guide_legend(ncol = 1)) +
+    scale_linetype_manual(values = SiteLine, guide = guide_legend(ncol = 1)) +
+    theme_classic2() +
+    theme(plot.title = element_text(hjust = 0.5, size = 22, face = "bold.italic"),
+          plot.subtitle = element_text(hjust = 0.5, size = 16, face = "bold"),legend.position = "right",
+          panel.grid.major = element_line(),
+          legend.justification = c(0,0.5),
+          legend.key.width = unit(.75, "cm"),
+          legend.background = element_rect(size = unit(5, "cm")),
+          legend.title = element_text(size = 12, color = "black"),
+          legend.text = element_text(size = 11, colour = "black"),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12, face = "bold"),
+          strip.text = element_text(size = 12, colour = "black", angle = 90))
+  p2 <- p1 %+% rpcs_split$`Santa Rosa Island` +
+    labs(title = NULL, subtitle = NULL)
+  p3 <- p1 %+% rpcs_split$`Santa Cruz Island` +
+    labs(title = NULL, subtitle = NULL)
+  p4 <- p1 %+% rpcs_split$`Anacapa Island` +
+    labs(title = NULL, subtitle = NULL)
+  p5 <- p1 %+% rpcs_split$`Santa Barbara Island`  +
+    labs(title = NULL, subtitle = NULL) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12, face = "bold"))
+  plot <- ggarrange(p1, p2, p3, p4, p5, ncol = 1, align = "v", common.legend = FALSE)
+  a <- annotate_figure(
+    plot,
+    bottom = text_grob("Year", color = "black", face = "bold", size = 18, hjust = .4, x = .4),
+    left = text_grob("Percent Cover", color = "black", rot = 90, face = "bold", size = 18)
+  )
+  print(a)
+}
+```
