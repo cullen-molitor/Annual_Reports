@@ -1,3 +1,0 @@
-*NHSF_Raw_Tidy.csv filter=lfs diff=lfs merge=lfs -text
-*rpcs_Raw_Tidy.csv filter=lfs diff=lfs merge=lfs -text
-*oneM_Raw_Tidy.csv filter=lfs diff=lfs merge=lfs -text
