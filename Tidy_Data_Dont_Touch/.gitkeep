@@ -1,3 +1,6 @@
+# Raw Text Files
+/Raw_DB_Files_SAVE_HERE
+
 # History files
 .Rhistory
 .Rapp.history
@@ -37,11 +40,3 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
-
-# exclude everything from these folders
-Tidy_Data_Dont_Touch/*
-Raw_DB_Files_SAVE_HERE/*
-
-# exceptions to the above rules. This keeps the folder but not the contents
-!Raw_DB_Files_SAVE_HERE/.gitkeep 
-!Tidy_Data_Dont_Touch/.gitkeep

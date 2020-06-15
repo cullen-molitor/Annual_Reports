@@ -11,8 +11,6 @@
 
 source("global_markdown.R")
 
-Export_END_Year <- 2020 # <== CHANGE ME TO REFLECT ENDING YEAR OF DATA TEXT FILE <== 
-
 { # 1 m DF     ----
   
   { # RAW   ----
@@ -467,6 +465,89 @@ Export_END_Year <- 2020 # <== CHANGE ME TO REFLECT ENDING YEAR OF DATA TEXT FILE
       dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName,
                     Year, Month, Date, Temp_Daily_Mean, Temp_Daily_Min, Temp_Daily_Max, Temp_Monthly_Mean, MeanDepth) %>% 
       readr::write_csv("Tidy_Data_Dont_Touch/Temp_Raw_Tidy.csv")
+  }
+  
+}
+
+{ # RDFC DF   ----
+  
+  { # RAW  ----
+    rdfc_Raw <- data.table::fread(
+      glue("Raw_DB_Files_SAVE_HERE/KFM_RovingDiverFishCount_RawData_1982-{Export_END_Year}.txt")) %>%
+      dplyr::mutate(CommonName = gsub('ñ', 'n', CommonName),
+                    Abundance = gsub("c", "C", Abundance),
+                    Abundance = gsub("f", "F", Abundance),
+                    Abundance = gsub("s", "S", Abundance),
+                    Abundance = gsub("m", "M", Abundance),
+                    Abundance = gsub("^$", "NA", Abundance),
+                    Abundance = gsub("-", "NA", Abundance)) %>%
+      dplyr::filter(IslandCode != "CL") %>% 
+      # dplyr::mutate_at(14, ~replace(., is.na(.), 0)) %>%
+      tidyr::separate(SurveyDate, c('Date','Time'),' ') %>%
+      dplyr::mutate(Date = base::as.Date(Date, format = '%m/%d/%Y'),
+                    Count = as.double(Count)) %>% 
+      dplyr::group_by(SurveyYear, SiteNumber) %>% 
+      dplyr::filter(Date == base::max(Date),
+                    SurveyYear > 1996,
+                    ExperienceLevel == "E") %>% 
+      dplyr::ungroup() %>% 
+      dplyr::group_by(SiteNumber, CommonName, Abundance) %>% 
+      dplyr::mutate(
+        Count = case_when(
+          is.na(Count) & is.na(Score) ~ 0,
+          SurveyYear < 2004 & Abundance == "S" ~ 1,
+          is.na(Count) & !is.na(Score) ~ mean(Count, na.rm = T),
+          !is.na(Count) & !is.na(Score) ~ Count
+      )) %>%
+      dplyr::ungroup() %>% 
+      dplyr::left_join(siteInfo1) %>%
+      dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName, CommonName, 
+                    SurveyYear, Date, Score, Abundance, Count, ExperienceLevel, PermanentObserverNumber,
+                    ReserveStatus, MeanDepth) %>% 
+      readr::write_csv("Tidy_Data_Dont_Touch/RDFC_Raw_Tidy.csv")
+    # mutate(ExperienceLevel = ifelse(RDFC_DF$PermanentObserverNumber == 1 |
+    #                                   RDFC_DF$PermanentObserverNumber == 20,
+    #                                 "E", RDFC_DF$ExperienceLevel),
+    #        Count = ifelse(is.na(RDFC_DF$Count) & is.na(RDFC_DF$Score), 0, 
+    #                       ifelse(SurveyYear < 2004 & RDFC_DF$Abundance == "S", 1, 
+    #                              ifelse(SurveyYear < 2004 & RDFC_DF$Abundance == "F", 2,
+    #                                     ifelse(SurveyYear < 2004 & RDFC_DF$Abundance == "C", 3, 
+    #                                            ifelse(SurveyYear < 2004 & RDFC_DF$Abundance == "M", 4, RDFC_DF$Count))))))
+  }
+  # rdfc_Raw$Abundance <- factor(rdfc_Raw$Abundance, levels = c("NA", "S", "F", "C", "M"), ordered=TRUE)
+  # unique(rdfc_Raw$CommonName)
+  # filtered <- rdfc_Raw %>% 
+  #   filter(CommonName == "garibaldi, adult",
+  #          SiteCode == "GI")
+  # ggplot(data = filtered, aes(x = SurveyYear, y = Abundance, group = CommonName, color = CommonName)) +
+  #   geom_line(size = 1)
+  
+  { # Summary   ----
+    # oneM_Data <-  readr::read_csv("Tidy_Data_Dont_Touch/RDFC_Raw_Tidy.csv") %>% 
+    #   dplyr::group_by(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName,
+    #                   CommonName, SurveyYear, Date, ReserveStatus, MeanDepth, Reference) %>%
+    #   dplyr::summarise(Count_To_Reuse = Count,
+    #                    Area_Surveyed = n(),
+    #                    Total_Count = sum(Count),
+    #                    Mean_Density = round(Total_Count / Area_Surveyed, 4), 
+    #                    SD = round(sd(Count), 4),
+    #                    SE = round(SD / sqrt(Area_Surveyed), 4),
+    #                    Survey_Type = "RDFC") %>% 
+    #   dplyr::ungroup() %>%  
+    #   dplyr::group_by(IslandCode, Species, CommonName, SurveyYear) %>%
+    #   dplyr::mutate(Island_Area_Surveyed = n(),
+    #                 Island_Total_Count = sum(Count_To_Reuse),
+    #                 Island_Mean_Density = round(Island_Total_Count / Island_Area_Surveyed, 4),
+    #                 Island_SD = round(sd(Count_To_Reuse), 4),
+    #                 Island_SE = round(Island_SD / sqrt(Island_Area_Surveyed), 4),
+    #                 Island_Date = mean.Date(Date)) %>%
+    #   dplyr::ungroup() %>%
+    #   dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, Species, ScientificName, CommonName, SurveyYear, 
+    #                 Date, Total_Count, Mean_Density, SD, SE, Area_Surveyed,MeanDepth, Island_Date, Island_Mean_Density, Island_SD, 
+    #                 Island_SE, Island_Area_Surveyed, Island_Total_Count, Survey_Type) %>%
+    #   dplyr::distinct(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, Species, ScientificName, CommonName, SurveyYear, 
+    #                   Total_Count, Mean_Density, SD, SE, Area_Surveyed, .keep_all = TRUE) %>%
+    #   readr::write_csv("Tidy_Data_Dont_Touch/RDFC_Summary.csv")
   }
   
 }

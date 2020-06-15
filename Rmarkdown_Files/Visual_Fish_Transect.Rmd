@@ -7,6 +7,8 @@ knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = e
 ---
 # Appendix H. Visual Fish Transect Data
 
+Each survey year has only one value per site and species. If there were two surveys conducted at a given site that year, only the later survey date is kept. This means that some data is filtered out and the graphs do not represent the full data set. Furthermore, the data is summarized to show the mean density from the two passes along either side of the 100 m main transect.
+
 The following graphs are organized by longitude. From top to bottom the graphs descend longitudinally (west to east going down). This stratifies the islands by typical water temperatures and puts the coldest water at the top and progressively warmer water towards the bottom. These water temperatures fluctuate and this stratification does not always hold true, but it is meant to represent the general trend. Because of this stratification of the study sites, the kelp forest communities vary widely from island to island. The y-axis is fixed by the highest density of a given species to show relative abundance. 
 
 Solid lines represent sites outside of the California MPA network meaning they are unprotected from regular fishing activities. Dashed lines represent sites that are inside California State Marine Reserves (SMRs) which are no-take zones. The dotted line for Anacapa Island Keyhole lies within the Anacapa Island State Marine Conservation Area (SMCA) which is partially protected and allows the take of California spiny lobster and pelagic finfish. 
