@@ -3,10 +3,10 @@ Repository of Rmarkdown scripts used to build KFM Annual Report appendix graphs.
 
 ## Usage
 
-In order to use this script, it is necessary to download or have the raw text files from the Kelp Forest Monitoring access database. View the Database Management SOP in the Kelp Forest Monitoring Handbook SOP folder for instructions on how to create an export database with the correct tables. With the export databsae setup, the tables should be exported as text files. Only use raw data.
+In order to use this script, it is necessary to download or have the raw text files from the Kelp Forest Monitoring access database. View the Database Management SOP in the Kelp Forest Monitoring Handbook SOP folder for instructions on how to create an export database with the correct tables. With the export databsae setup, the tables should be exported as text files. Only export raw data.
 
 ### Export Data
-The files needed are the following:
+The files needed are:
 
 1. "KFM_1mQuadrat_RawData_1982-CurrentYear.txt"
 2. "KFM_5mQuadrat_RawData_1982-CurrentYear.txt"
