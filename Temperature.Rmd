@@ -1,0 +1,102 @@
+---
+output: 
+  word_document:
+    reference_docx: Meta_Data/template_temp.docx
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = "Output_Documents") })
+---
+# Appendix L. Temperature Data by Site
+
+The temperature graphs are divided into a right graph and left graph. The left graph displays the mean daily temperature, as well as the daily temperature range, for the current year. The right graph displays temperature values for the current year compared to past years. Blue diamonds indicate the mean monthly temperatures for the current year. Violin plots indicate the distribution of all past years monthly mean temperature values. Boxplots are inset in the violin plots to show the median, the quartile range, and the outliers of the monthly mean values of all years. If more than seven days of temperature values are missing from any month, due to instrument loss or failure, all temperature values for that month of that year are excluded. Graphs are ordered by site longitude, from west to east.
+
+```{r Temperature setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("global_markdown.R")
+siteInfo1 <- siteInfo1 %>% arrange(Longitude)
+temp_Raw <- readr::read_csv("Tidy_Data_Dont_Touch/Temp_Raw_Tidy.csv") %>% 
+  dplyr::filter(Year <= Year_to_Filter_Data_by) 
+
+temp_Raw$Month <- factor(temp_Raw$Month, levels = MonthLevels)
+temp_Raw$SiteName <- factor(temp_Raw$SiteName, levels = siteInfo1$SiteName)
+temp_Daily_Summary <- temp_Raw %>%
+  subset(Date >= glue("{Year_to_Filter_Data_by - 1}-05-01") & Date <= glue("{Year_to_Filter_Data_by}-04-30")) %>% 
+  droplevels()
+
+```
+```{r Temperature Plots, echo=FALSE, warning=FALSE, message=FALSE, fig.width=15, fig.height=10, dev="CairoPNG"}
+for (i in levels(temp_Daily_Summary$SiteName)) {
+  
+  temp_daily_subset <- filter(temp_Daily_Summary, SiteName == i)
+  
+  temp_monthly_subset <- filter(temp_Raw, SiteName == i) %>% 
+    dplyr::distinct(SiteNumber, Year, Month, Temp_Monthly_Mean, .keep_all = TRUE)
+  
+  p1 <- ggplot2::ggplot(data = temp_daily_subset, aes(x = Date, y = Temp_Daily_Mean)) +
+    ggplot2::geom_ribbon(aes(ymin = Temp_Daily_Min, ymax = Temp_Daily_Max, fill = SiteCode), alpha = .75) +
+    ggplot2::geom_line(size = .5, aes(color = SiteCode)) +
+    ggplot2::scale_x_date(date_breaks = "1 month", date_labels = "%b \n %Y") +
+    ggplot2::scale_y_continuous(limits = c(min(temp_daily_subset$Temp_Daily_Min), 
+                                           max(temp_daily_subset$Temp_Daily_Max)),
+                                expand = expansion(add = .1)) +
+    ggplot2::scale_fill_manual(labels = "Daily temperature range", values = "grey") +
+    ggplot2::scale_color_manual(labels = "Mean daily temperature", values = "black") +
+    ggplot2::labs(x =  NULL, y = NULL,
+                  color = NULL,
+                  fill = NULL) +
+    ggpubr::theme_classic2() +
+    ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 22),
+                   plot.subtitle = element_text(hjust = 0.5, size = 16),
+                   legend.position = "bottom",
+                   panel.grid.major = element_line(),
+                   legend.justification = c(0,0.5),
+                   legend.key.width = unit(.75, "cm"),
+                   legend.background = element_rect(size = unit(5, "cm")),
+                   legend.title = element_text(size = 12, color = "black"),
+                   legend.text = element_text(size = 11, colour = "black"),
+                   axis.text.x = element_text(angle = 0, hjust = .5, vjust = .5, size = 12),
+                   axis.text.y = element_text(angle = 0, hjust = 1, vjust = 1, size = 12),)
+  
+  p2 <- ggplot2::ggplot() +
+    ggplot2::geom_violin(data = temp_monthly_subset, color = "lightblue", alpha = .8,
+                         aes(x = Month, y = Temp_Monthly_Mean, group = Month, fill = SiteCode)) +
+    ggplot2::geom_boxplot(data = temp_monthly_subset, width = .08, 
+                          aes(x = Month, y = Temp_Monthly_Mean, group = Month, fill = Temp_Monthly_Mean)) +
+    ggplot2::geom_point(data = temp_daily_subset, shape = 23, size = 2, stroke = 2,
+                        aes(x = Month, y = Temp_Monthly_Mean, color = SiteCode)) +
+    ggplot2::scale_y_continuous(limits = c(min(temp_daily_subset$Temp_Daily_Min),
+                                           max(temp_daily_subset$Temp_Daily_Max)),
+                                # sec.axis = ~ . * (9 / 5) + 32,  
+                                expand = expansion(add = .1)) +
+    ggplot2::scale_fill_manual(labels = "Monthly mean temperature distribution, all years", values = "lightblue") +
+    ggplot2::scale_color_manual(labels = glue("Monthly mean temp ({Year_to_Filter_Data_by - 1}/{Year_to_Filter_Data_by})"), values = "blue") +
+    ggplot2::labs(x =  NULL, y = NULL, color = NULL, fill = NULL) +
+    ggpubr::theme_classic2() +
+    ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 22),
+                   plot.subtitle = element_text(hjust = 0.5, size = 16),
+                   legend.position = "bottom",
+                   panel.grid.major = element_line(),
+                   legend.justification = c(0,0.5),
+                   legend.key.width = unit(.75, "cm"),
+                   legend.background = element_rect(size = unit(5, "cm")),
+                   legend.title = element_text(size = 12, color = "black"),
+                   legend.text = element_text(size = 11, colour = "black"),
+                   axis.text.x = element_text(angle = 0, hjust = 1, vjust = 1, size = 12),
+                   strip.text = element_text(size = 12, colour = "black", angle = 90),
+                   axis.line.y = element_blank(),
+                   axis.text.y.left = element_blank(),
+                   axis.text.y.right = element_text(hjust = 1, vjust = 1, size = 12),
+                   axis.ticks.y = element_blank())
+  
+  
+  plot <- ggarrange(p1, p2, ncol = 2, align = "h", common.legend = FALSE)
+  
+  a <- annotate_figure(
+    plot, top = text_grob(paste(temp_daily_subset$IslandName, temp_daily_subset$SiteName), 
+                          color = "black", size = 18, hjust = .5, x = .5),
+    # right = text_grob("Temperature (°F)", color = "black", rot = 270, size = 18),
+    left = text_grob("Temperature (°C)", color = "black", rot = 90, size = 18)
+  )
+  print(a)
+}
+
+```

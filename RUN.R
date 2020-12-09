@@ -22,10 +22,12 @@ source("Raw_to_Tidy.R")
 
 
 # RUN THIS TO PRODUCE ANNUAL REPORT APPENDIX GRAPH DOCUMENTS
-rmarkdown::render("Rmarkdown_Files/1_m_Quadrats.Rmd", output_dir = "Output_Documents")
-rmarkdown::render("Rmarkdown_Files/5_m_Quadrats.Rmd", output_dir = "Output_Documents")
-rmarkdown::render("Rmarkdown_Files/Band_Transects.Rmd", output_dir = "Output_Documents")
-rmarkdown::render("Rmarkdown_Files/RPCs.Rmd", output_dir = "Output_Documents")
-rmarkdown::render("Rmarkdown_Files/Visual_Fish_Transect.Rmd", output_dir = "Output_Documents")
-rmarkdown::render("Rmarkdown_Files/Temperature.Rmd", output_dir = "Output_Documents")
-rmarkdown::render("Rmarkdown_Files/NHSF.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("1_m_Quadrats.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("5_m_Quadrats.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("Band_Transects.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("RPCs.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("Visual_Fish_Transect.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("Temperature.Rmd", output_dir = "Output_Documents")
+rmarkdown::render("NHSF.Rmd", output_dir = "Output_Documents")
+
+rmarkdown::render("Biomass.Rmd", output_dir = "Output_Documents")

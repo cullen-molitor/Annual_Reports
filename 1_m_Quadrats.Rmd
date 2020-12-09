@@ -1,0 +1,150 @@
+---
+output:
+  word_document:
+    reference_docx: Meta_Data/template_annual.docx
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = "Output_Documents") })
+---
+```{r setups, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("global_markdown.R")
+oneM_Data <- read_csv("Tidy_Data_Dont_Touch/oneM_Summary.csv") %>% 
+  dplyr::filter(SurveyYear <= Year_to_Filter_Data_by) %>% 
+  dplyr::arrange(Species)
+oneM_Data$IslandName <- factor(oneM_Data$IslandName, levels = unique(siteInfo1$IslandName))
+oneM_Data$SiteName <- factor(oneM_Data$SiteName, levels = SiteLevels)
+oneM_Data$CommonName <- factor(oneM_Data$CommonName, levels = unique(oneM_Data$CommonName))
+oneM_Drop_Special_Cases <- oneM_Data %>% 
+  dplyr::filter(ScientificName != "Undaria pinnatifida",
+                ScientificName != "Dictyoneuropsis reticulata/Agarum fimbriatum",
+                ScientificName != "Haliotis rufescens",
+                ScientificName != "Crassedoma giganteum",
+                ScientificName != "Kelletia kelletii",
+                ScientificName != "Oxylebius pictus",
+                ScientificName != "Pycnopodia helianthoides",
+                ScientificName != "Lytechinus anamesus",
+                CommonName != "giant kelp stipes > 1m",
+                CommonName != "giant kelp, all",
+                CommonName != "southern sea palm, all",
+                CommonName != "oar weed, all",
+                CommonName != "California sea palm, all") %>% 
+  base::droplevels()
+
+oneM_KH_Up <-oneM_Data %>% 
+  subset(SiteCode == 'KH' & ScientificName == 'Undaria pinnatifida')%>%
+  droplevels() %>% 
+  dplyr::mutate(Max_Mean = max(Mean_Density))
+
+oneM_KH_Up_p2 <- oneM_KH_Up %>% 
+  filter(CommonName == "wakame, juvenile")
+
+oneM_KH_Up_p1 <- oneM_KH_Up %>% 
+  filter(CommonName == "wakame, adult")
+
+```
+# Appendix `r One_Meter_Quad_Appendix_Letter`. 1 m Quadrat Data
+
+The following graphs are organized by longitude. From top to bottom the graphs descend longitudinally (west to east going down). This stratifies the islands by typical water temperatures and puts the coldest water at the top and progressively warmer water towards the bottom. These water temperatures fluctuate, and this stratification does not always hold true, but it is meant to represent the general trend. Because of this stratification of the study sites, the kelp forest communities vary widely from island to island.
+
+Solid lines represent sites outside of the California MPA network meaning they are unprotected from regular fishing activities. Dashed lines represent sites that are inside California State Marine Reserves (SMRs) which are no-take zones. The dotted line for Anacapa Island Keyhole lies within the Anacapa Island State Marine Conservation Area (SMCA) which is partially protected and allows the take of California spiny lobster and pelagic finfish.
+
+If comparing MPA sites vs non-MPA sites (inside vs outside), it is important to note that some original sites began with no protection status and only gained protection as a designated MPA in 2003. These sites will appear as dashed lines even if they began when the area was not protected. In 2005 16 new sites were added to study the effects of the MPA network. For this reason, only look from 2005 and up for these comparisons. For detailed comparisons of the sites inside MPAs vs outside MPAs, please see the upcoming 5-year trend report.
+
+```{r Keyhole Wakame 1 m, echo=FALSE, fig.height=7, fig.width=12}
+p1 <- ggplot(oneM_KH_Up_p1,
+             aes(x = Date, y = Mean_Density, color = SiteName, linetype = SiteName)) + 
+  geom_line(size = 1) +
+  scale_x_date(date_labels = "%Y", breaks = unique(oneM_KH_Up_p1$Date),
+               expand = expansion(mult = c(0.01, .01))) +
+  scale_y_continuous( # limits = c(0, oneM_KH_Up_p1$Max_Mean),   # Un-comment to make scales fixed across both graphs
+                     expand = expansion(mult = c(0, .1))) +
+  labs(title = oneM_KH_Up_p1$ScientificName,  
+       subtitle = oneM_KH_Up_p1$CommonName,
+       color = "Site Name", linetype = "Site Name",
+       x = NULL, y = NULL) +
+  facet_grid(rows = vars(IslandName), scales = "fixed") +
+  scale_color_manual(values = SiteColor, guide = guide_legend(ncol = 1)) +
+  scale_linetype_manual(values = SiteLine, guide = guide_legend(ncol = 1)) +
+  theme_classic2() +
+  theme(plot.title = element_text(hjust = 0.5, size = 22, face = "italic"),
+        plot.subtitle = element_text(hjust = 0.5, size = 16),legend.position = "right",
+        panel.grid.major = element_line(),
+        legend.justification = c(0,0.5),
+        legend.key.width = unit(.75, "cm"),
+        legend.background = element_rect(size = unit(5, "cm")),
+        legend.title = element_text(size = 14, color = "black"),
+        legend.text = element_text(size = 13, colour = "black"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 12),
+        strip.text = element_text(size = 12, colour = "black", angle = 90))
+
+p2 <- p1 %+% oneM_KH_Up_p2 +
+  labs(title = NULL, x = "Year",
+       subtitle = oneM_KH_Up_p2$CommonName) +
+  theme(axis.title = element_text(hjust = .5, size = 18),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12))
+
+plot <- ggarrange(p1, p2, ncol = 1, align = "v", common.legend = FALSE)
+a <- annotate_figure(
+  plot,
+  bottom = text_grob("1 m² Quadrat Data",
+                     color = "black", size = 14, hjust = 0, x = 0),
+  left = text_grob("Mean Density/m²", color = "black", rot = 90, size = 18)
+)
+print(a)
+
+```
+```{r 1 m Quadrats Plots, echo=FALSE, fig.height=16, fig.width=12}
+for (i in levels(oneM_Drop_Special_Cases$CommonName)) {
+  oneM_filtered_data <- oneM_Drop_Special_Cases %>%
+    dplyr::filter(CommonName == i)  %>% 
+    dplyr::group_by(Species, CommonName) %>% 
+    dplyr::mutate(Max_Mean = max(Mean_Density)) %>% 
+    dplyr::ungroup() 
+  oneM_split <- base::split(oneM_filtered_data, f = oneM_filtered_data$IslandName) 
+  p1 <- ggplot(oneM_split$`San Miguel Island`,
+               aes(x = SurveyYear, y = Mean_Density, color = SiteName, linetype = SiteName)) + 
+    geom_line(size = 1) +
+    scale_x_continuous(breaks = c(1982:Year_to_Filter_Data_by), expand = c(0,0)) +
+    scale_y_continuous( # limits = c(0, oneM_split$`San Miguel Island`$Max_Mean),   # Un-comment to make scales fixed across both graphs 
+                       expand = expansion(mult = c(0, .1))) +
+    labs(title = oneM_split$`San Miguel Island`$ScientificName,  
+         subtitle = oneM_split$`San Miguel Island`$CommonName,
+         color = "Site Name", linetype = "Site Name",
+         x = NULL, y = NULL) +
+    facet_grid(rows = vars(IslandName), scales = "fixed") +
+    scale_color_manual(values = SiteColor, guide = guide_legend(ncol = 1)) +
+    scale_linetype_manual(values = SiteLine, guide = guide_legend(ncol = 1)) +
+    theme_classic2() +
+    theme(plot.title = element_text(hjust = 0.5, size = 22, face = "italic"),
+          plot.subtitle = element_text(hjust = 0.5, size = 16),
+          legend.position = "right",
+          panel.grid.major = element_line(),
+          legend.justification = c(0,0.5),
+          legend.key.width = unit(.75, "cm"),
+          legend.background = element_rect(size = unit(5, "cm")),
+          legend.title = element_text(size = 14, color = "black"),
+          legend.text = element_text(size = 13, colour = "black"),
+          axis.title = element_text(hjust = .5, size = 18),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12),
+          strip.text = element_text(size = 14, colour = "black", angle = 90))
+  p2 <- p1 %+% oneM_split$`Santa Rosa Island` +
+    labs(title = NULL, subtitle = NULL)
+  p3 <- p1 %+% oneM_split$`Santa Cruz Island` +
+    labs(title = NULL, subtitle = NULL)
+  p4 <- p1 %+% oneM_split$`Anacapa Island` +
+    labs(title = NULL, subtitle = NULL)
+  p5 <- p1 %+% oneM_split$`Santa Barbara Island`  +
+    labs(title = NULL, subtitle = NULL, x = "Year") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12))
+  plot <- ggpubr::ggarrange(p1, p2, p3, p4, p5, ncol = 1, align = "v", common.legend = FALSE)
+  a <- ggpubr::annotate_figure(
+    plot,
+    bottom = text_grob("1 m² Quadrat Data",
+                       color = "black", size = 14, hjust = 0, x = 0),
+    left = text_grob("Mean Density/m²", color = "black", rot = 90, size = 18)
+  )
+  print(a)
+}
+```

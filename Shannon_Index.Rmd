@@ -1,0 +1,495 @@
+---
+title: "Channel Islands National Park Kelp Forest Monitoring Program"
+subtitle: "Kelp Forest Community Trend Report 2005-2019"
+output:
+  word_document:
+    toc: yes
+    reference_docx: Meta_Data/template.docx
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = "Output_Documents") })
+---
+
+# Abstract
+
+What is the meaning of life?
+
+# Acknowledgments 
+
+Thank.
+
+# List of Acronyms 
+
+| **Acronym** | **Definition** |
+|:------|-----:|
+| SMR | State Marine Reserve | 
+| FSC | Foliar Standing Crop |
+
+# Introduction
+
+In these analyses, we compared changes in diversity and biomass within benthic and fish communities at KFMP MPA reference sites since 2005. For the benthic community, we compiled data from each benthic survey type - 1m quadrats, 5m quadrats, and band transects, and eliminated redundant species between survey types, using only the "best" survey for each species. We then corrected for sampling differences between survey types by calculating estimated total site abundances (density (#/m²) * 2000 m² = estimated count at site), and calculated Shannon's diversity index (or "Shannon Index" - a commonly used metric in ecology) for each site and year. Roving Diver Fish Counts, however, occur over the entirety of the site, so we calculated Shannon indicies using average counts for each species within a given site and year. (Continue about Biomass but we haven't done those yet...)
+
+To test whether MPA reserve status, island, or their interaction have a significant effect on benthic and fish diversity over time, we used a pair of generalized linear mixed models with Shannon Index as the independent variable, Reserve Status and Island as fixed effects, and Survey Year as a random effect (functionally equivalent to a two-way repeated measures ANOVA). Results that follow present the statistical outputs from these models, as well as visualizations of benthic and fish diversity over time, organized by reserve status and island.
+
+# Methods
+
+R analysis.
+
+Maps of each MPA with sites shown.
+
+## Equations Used
+
+$\text{Shannon's Diversity Index} = -\sum\limits_{i=1}^{s} \ P_i * ln(P_i)$
+
+Where
+
++ $S$ is the total number of species in the community (species richness)
++ $P_i$ is the proportion of the total # of individuals in the community of species $i$
+
+$\text{Biomass} = \sum\limits_{i=1}^{n} \frac{1}{n} * b * d$
+
+Where
+
++ n is the total number measured
++ b is the biomass in grams for an individual at a given size
++ d is the density in #/$m^{2}$ for that species
+
+Foliar Standing Crop = $0.0848*SD + 0$
+
+Where
+
++ $0.0848$ is the regression coefficient relating stipe density to foliar standing crop (Rassweiler et al. 2018)
++ $SD$ is the stipe density for a given site and year
+
+```{r Notes, include=FALSE}
+# Should plots be colorblind friendly?
+
+# Why only 14 benthic species for biomass? make list of species without biomass calculations and see if we can get more
+
+# Not enough rugosity data from finescale bathymetry. Consider doing day trips to Anacapa to conduct rugosity surveys at the 6 reference sites to use with models. David has rusosity data from 90's? not enough for MPA comparison but is a start maybe
+
+# Biomass Data... 21 missing values (11 have NHSF so using that for density) for Pisaster in 2018/2019. Need to fill database with zeros (WTF?). Tegula started sampling in 2006 so 5016 MPA values instead of 5040. Lithopoma Handbook data management says 1985 (sporadic sampling) what does that mean? 1 m data missing from only RR and only 1985... also RR is missing data from 1 quad of Patiria in 1985. Need to correct in DB.
+
+
+# Visibility and surge data for fish counts? Stats?
+
+# Understory algae cover and benthic densities... Does benthic invert density or diversity go down when algae cover goes up?
+
+# ENSO data... Temp logger data... 
+```
+
+```{r Data Cleaning, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("global_markdown.R")
+
+{#Benthic Counts DF
+Benthic_Data <- readr::read_csv("Tidy_Data_Dont_Touch/Benthic_Diversity_Table.csv")
+}
+
+{ # Benthic Biomass DF
+ Benthic_Biomass <- readr::read_csv("Tidy_Data_Dont_Touch/Benthic_Biomass_Table.csv") 
+}
+
+{ # Fish Diversity DF
+  # consider that pre 1996 data only are abundance scores, multiple observers - some spp should be averaged (ie schooling fish) whereas cryptic species (ie lingcod) the high count should be used.
+  
+  #Cullen depending on how we want to do this, we could drop the block of code that tidies RDFC data here, but I'm going to start with the Raw_Tidy format because ^^ that kind of stuff is a touch beyond me still.  Either way, we're working modularly so it's not a big deal
+  
+  RDFC_Data <- read_csv("Tidy_Data_Dont_Touch/RDFC_Raw_Tidy.csv") %>%
+    dplyr::select(IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, Count, ReserveStatus, Reference) %>%
+    dplyr::filter(Reference == TRUE, SurveyYear > 2004, SiteCode != "KH") %>% #WE DONT HAVE REFERENCE IN THE RDFC DATA! Make sure we fix this
+    dplyr::mutate(Count= replace_na(Count, 0)) %>%
+    dplyr::group_by(IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, ReserveStatus) %>%
+    dplyr::summarise(Count = mean(Count)) %>% #this probably ISNT what we want, and we need a more complex solution (see "consider" above - here I'm just averaging) Or maybe not. spp evenness is a factor of shannon index, so counts do matter, but richness is essentially presence absence, splitting hairs over whether we got the count exact is beneath knowing that the species was there or not
+     dplyr::ungroup() %>% 
+     tidyr::pivot_wider(names_from = ScientificName, values_from = Count, values_fill = 0)
+  
+  #Eventually this needs to go to Raw_to_Tidy.r like we did for the Counts and for Biomass pivot_wider()s above
+  #But leaving this in until we're sure about summarising Count by means
+}
+
+# Kelp biomass? find stipe count calculations if possible and input into database
+# Tim spent most of the day digging on this topic 
+
+{ # Kelp Stipe Density to Foliar Standing Crop (FSC)
+  # Using coefficients from Rassweiler et al 2018 (SBC LTER) to convert frond density to FSC
+  
+  season_months <- c("May", "June", "July", "August", "September", "October") #put this in global_markdown like oneM_Biomass_Species once we're good with it
+  stipedensity_FSC <- read_csv("Meta_Data/stipedensity_FSC_regressioncoefs.csv") %>%
+    dplyr::filter(Month %in% season_months) %>%
+    dplyr::summarise(slope=mean(slope))
+ 
+  kelp_stipe_data <- read_csv("Tidy_Data_Dont_Touch/Macro_Stipe_Raw_Tidy.csv") #%>%
+  kelp.holder <- dplyr::select(kelp_stipe_data, IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, Stipe_Count, ReserveStatus, Reference) %>%
+    dplyr::filter(Reference == TRUE, SurveyYear > 2004, SiteCode != "KH") %>% 
+    dplyr::group_by(IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, ReserveStatus) %>%
+    dplyr::summarise(Stipe_Count= sum(Stipe_Count)) %>% 
+    dplyr::ungroup() %>%
+    dplyr::mutate(Stipe_Density = Stipe_Count/200) %>% #5m quads sample 1m each side of 100m main transect = 200m2
+    dplyr::mutate(FSC = Stipe_Density*stipedensity_FSC$slope)
+    
+  # summarise by site/year/everything to get total stipe counts for site, 
+  # divide (mutate) by area surveyed (200m2?) to get frond density,
+  # convert frond densities to FSC using Rassweiler 2018 coefficients
+  
+  # Think about the potential issues of outputs being FSC by month - IE a survey done in june is going to have a lower FSC than a survey done in september. This is within a season and the coefficients look pretty close, so maybe it's not a big deal, but this sounds like maybe not an apples/apples situation. Discussed this with roommates, thought that averaging out the slopes from may-sept might provide a reasonable "season-level" estimate of biomass, given that the SBC model is calculating NPP based on the notion of mass-specific growth rates, and FSC is broken up into submerged and canopy sections (or combined to whole FSC which are the coefficients used here), so while stipe count doesn't increase by much within a season, the total biomass associated with that individual over the summer's growth greatly increases (obviously submerged portion on canopy forming individuals doesn't change much as depth is fixed, but a larger proportion of the individual is on the surface). I think we can basically "convert it to midsummer" using the average coefficient over the season, allowing for between site comparisons within a year. 6/24/20 I did it this way for now as a placeholder
+  
+}
+
+{ # combining site-level biomass from benthic, fish, and kelp, to start teasing apart associations between species particularly with kelp biomass (ie what drives kelp biomass and what is kelp biomass a driver of)
+  
+ All_Spp_Biomasses <- cbind(Benthic_Biomass, select(kelp.holder, - IslandCode, - IslandName, - SiteCode, -SiteName, - SurveyYear, - ReserveStatus, - ScientificName, - Stipe_Count))
+names(All_Spp_Biomasses) <- str_replace_all(names(All_Spp_Biomasses), c(" " = "_" , "," = "" ))
+  
+  All_Spp_Counts <- cbind(Benthic_Data, select(RDFC_Data, - IslandCode, - IslandName, - SiteCode, -SiteName, - SurveyYear, - ReserveStatus), select(kelp.holder, - IslandCode, - IslandName, - SiteCode, -SiteName, - SurveyYear, - ReserveStatus, - ScientificName, - Stipe_Count))
+  
+  #Honestly I don't want to compare counts, we want to compare densities. Best way is to probably make a third pivot_wider for density data and then do this ^
+  
+  #Similarly, I want to combine the benthic and fish diversity by site and year with kelp biomass, but I don't calculate those until later.    6/24/20 I added this below fish diversity (since that's the first point running from top down where I have the data I want, even though it feels like it should be up here in the "cleanup")
+  
+}
+
+```
+
+
+```{r Model Construction and Analyses, include=FALSE}
+{ #Benthic Shannon Index Calculation and Analysis
+Benthic_Shannon_Index <- Benthic_Data %>%
+    dplyr::select(-IslandCode, - IslandName, - SiteCode, -SiteName, - SurveyYear, - ReserveStatus) %>%
+    vegan::diversity()
+
+Benthic_Site_Info <- select(Benthic_Data, IslandCode, IslandName, 
+                            SiteCode, SiteName, SurveyYear, ReserveStatus) 
+Benthic_Diversity <- cbind(Benthic_Site_Info,
+                           "ShannonIndex" = Benthic_Shannon_Index) 
+
+a <- car::Anova(lme4::lmer(ShannonIndex ~ ReserveStatus * IslandCode + (1 | SurveyYear), data = Benthic_Diversity), test="F")
+
+}
+
+{ #Fish Shannon Index Calculation and Analysis
+  Fish_Shannon_Index <- RDFC_Data %>%
+    dplyr::select(-IslandCode, - IslandName, - SiteCode, -SiteName, - SurveyYear, - ReserveStatus) %>%
+    vegan::diversity()
+
+Fish_Site_Info <- select(RDFC_Data, IslandCode, IslandName, 
+                            SiteCode, SiteName, SurveyYear, ReserveStatus) 
+Fish_Diversity <- cbind(Fish_Site_Info,
+                           "ShannonIndex" = Fish_Shannon_Index) 
+
+b <- car::Anova(lme4::lmer(ShannonIndex ~ ReserveStatus * IslandCode + (1 | SurveyYear), data = Fish_Diversity), test="F")
+}
+
+{ #Kelp Biomass Analysis
+#comparing kelp biomass by mpa status and island (analogous to diversity models)
+c <- car::Anova(lme4::lmer(FSC ~ ReserveStatus * IslandCode + (1 | SurveyYear), data = kelp.holder), test="F")
+
+All_Benthic <- full_join(All_Spp_Biomasses, Benthic_Diversity, by = c("IslandCode", "IslandName", "SiteCode", "SiteName", "SurveyYear", "ReserveStatus"))
+d <- car::Anova(lme4::lmer(ShannonIndex ~ FSC + (1 | SurveyYear), data = All_Benthic), test="F")
+
+}
+```
+
+# Statistical Analyses
+
+Explain me
+
+## Benthic Diversity
+```{r Benthic Summary Tables, results = 'asis'}
+knitr::kable(a, caption= "Model Formula: Shannon Index = Reserve Status * Island + (1 | Survey Year)")
+```
+
+
+## Fish Diversity
+```{r Fish Summary Tables, results = 'asis'}
+knitr::kable(b, caption= "Model Formula: Shannon Index = Reserve Status * Island + (1 | Survey Year)")
+```
+
+
+## Kelp Biomass
+```{r Kelp Biomass Summary Tables, results = 'asis'}
+knitr::kable(c, caption= "Model Formula: Foliar Standing Crop = Reserve Status * Island + (1 | Survey Year)")
+```
+
+# Figures
+
+```{r Benthic Shannon Index Plots, warning=FALSE, message=FALSE, fig.width=12, fig.height=15}
+p1 <- ggplot2::ggplot(Benthic_Diversity, aes(x = SurveyYear, y = ShannonIndex, color = ReserveStatus)) +
+  ggplot2::geom_smooth(method = 'loess', formula='y~x') +
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::labs(title = "Benthic Diversity",
+                subtitle = "Comparisons of Select MPA Reference Sites",
+                x = NULL, y = NULL,
+                color = "Reserve Status",
+                caption = "Fig 1.") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 18),
+                 plot.subtitle = element_text(hjust = 0.5, size = 16),
+                 plot.caption = element_text(size = 12),
+                 legend.justification = c(0, 0.5),
+                 legend.key.width = unit(.75, "cm"),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.text.x = element_blank(),
+                 axis.text.y = element_text(size = 12))
+
+p2 <- ggplot2::ggplot(Benthic_Diversity, aes(x = SurveyYear, y = ShannonIndex, color = IslandCode)) +
+  ggplot2::geom_smooth(method = 'loess', formula='y~x') +
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::labs(x = NULL, y = NULL,
+                color = "Island Code",
+                caption = "Fig 2.") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.caption = element_text(size = 12),
+                 legend.justification = c(0, 0.5),
+                 legend.key.width = unit(.75, "cm"),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.text.x = element_blank(),
+                 axis.text.y = element_text(size = 12))
+
+p3 <- ggplot2::ggplot(Benthic_Diversity, aes(x = SurveyYear, y = ShannonIndex, color = IslandCode, linetype = ReserveStatus)) +
+  ggplot2::geom_smooth(method = 'loess', formula = 'y~x', se = F) +
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::labs(x = "Survey Year", y = NULL,
+                color = "Island Code", 
+                linetype = "Reserve Status",
+                caption = "Fig 3.") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.caption = element_text(size = 12),
+                 legend.justification = c(0, 0.5),
+                 legend.key.width = unit(.75, "cm"),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.title = element_text(size = 16),
+                 axis.text.y = element_text(size = 12),
+                 axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12))
+Benthic_Diversity_Plot <-ggarrange(p1, p2, p3, ncol = 1, align = "v")
+Benthic_Diversity_annotated <- ggpubr::annotate_figure(
+    Benthic_Diversity_Plot,
+    bottom = text_grob(paste(" Fig 1. Benthic diversity by reserve status across all reference sites",
+                             "\n",
+                             "Fig 2. Benthic diversity by island across all reference sites",
+                             "\n",
+                             "Fig 3. Benthic diversity by island and reserve status across all reference sites"),
+                       color = "black", size = 12, hjust = 0, x = 0),
+    left = text_grob("Shannon Index (Diversity)", color = "black", rot = 90, size = 16)
+  )
+  print(Benthic_Diversity_annotated)
+
+``` 
+
+```{r Fish Shannon Index Plots, warning=FALSE, message=FALSE, fig.width=12, fig.height=15}
+p4 <- ggplot2::ggplot(Fish_Diversity, aes(x = SurveyYear, y = ShannonIndex, color = ReserveStatus)) +
+  ggplot2::geom_smooth(method = 'loess', formula='y~x') +
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::labs(title = "Fish Diversity",
+                subtitle = "Comparisons of Select MPA Reference Sites",
+                x = NULL, y = NULL,
+                color = "Reserve Status",
+                caption = "Fig 4.") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 18),
+                 plot.subtitle = element_text(hjust = 0.5, size = 16),
+                 plot.caption = element_text(size = 12),
+                 legend.justification = c(0, 0.5),
+                 legend.key.width = unit(.75, "cm"),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.text.x = element_blank(),
+                 axis.text.y = element_text(size = 12))
+
+p5 <- ggplot2::ggplot(Fish_Diversity, aes(x = SurveyYear, y = ShannonIndex, color = IslandCode)) +
+  ggplot2::geom_smooth(method = 'loess', formula='y~x') +
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::labs(x = NULL, y = NULL,
+                color = "Island Code",
+                caption = "Fig 5.") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.caption = element_text(size = 12),
+                 legend.justification = c(0, 0.5),
+                 legend.key.width = unit(.75, "cm"),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.text.x = element_blank(),
+                 axis.text.y = element_text(size = 12))
+
+p6 <- ggplot2::ggplot(Fish_Diversity, aes(x = SurveyYear, y = ShannonIndex, color = IslandCode, linetype = ReserveStatus)) +
+  ggplot2::geom_smooth(method = 'loess', formula = 'y~x', se = F) +
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::labs(x = "Survey Year", y = NULL,
+                color = "Island Code", 
+                linetype = "Reserve Status",
+                caption = "Fig 6.") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.caption = element_text(size = 12),
+                 legend.justification = c(0, 0.5),
+                 legend.key.width = unit(.75, "cm"),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.title = element_text(size = 16),
+                 axis.text.y = element_text(size = 12),
+                 axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12))
+Fish_Diversity_Plot <- ggarrange(p4, p5, p6, ncol = 1, align = "v")
+Fish_Diversity_annotated <- ggpubr::annotate_figure(
+    Fish_Diversity_Plot,
+    bottom = text_grob(paste(" Fig 4. Fish diversity by reserve status across all reference sites",
+                             "\n",
+                             "Fig 5. Fish diversity by island across all reference sites",
+                             "\n",
+                             "Fig 6. Fish diversity by island and reserve status across all reference sites"),
+                       color = "black", size = 12, hjust = 0, x = 0),
+    left = text_grob("Shannon Index (Diversity)", color = "black", rot = 90, size = 16)
+  )
+  print(Fish_Diversity_annotated)
+```
+
+```{r Kelp Biomass Plots, warning=FALSE, message=FALSE, fig.width=12, fig.height=15}
+All_Benthic$IslandName <- factor(All_Benthic$IslandName, levels = MPA_Levels)
+p7 <- ggplot(All_Benthic, aes(x = SurveyYear, y = FSC, color= ReserveStatus)) +
+  ggplot2::scale_color_manual(values = c("Inside" = "green", "Outside" = "red")) +
+  ggplot2::geom_smooth(method = 'loess', formula = 'y~x') +
+  ggplot2::facet_grid(rows= vars(IslandName), scales = "fixed") +
+  ggplot2::labs(title = "Macrocystis pyrifera ", 
+                subtitle = "Biomass at Select MPA Reference Sites",
+                x = "Survey Year",
+                y = "Foliar Standing Crop (FSC) (g/m²)",
+                color = "MPA Status", 
+                linetype = "Reserve Status",
+                caption = "Fig 3. Macrocystis pyrifera biomass by island and reserve status across all reference sites") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 18),
+                 plot.subtitle = element_text(hjust = 0.5, size = 16),
+                 legend.position = "bottom",
+                 plot.caption = element_text(hjust = 0),
+                 panel.border = element_rect(fill = FALSE),
+                 legend.justification = c(0, 0.5),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.title = element_text(size = 16),
+                 axis.text.y = element_text(size = 12),
+                 axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12),
+                 strip.text = element_text(size = 12, colour = "black"))
+# 
+# p8 <- ggplot(All_Benthic, aes(x = SurveyYear, y = Pycnopodia_helianthoides, color= ReserveStatus)) +
+#   ggplot2::scale_color_manual(values = c("Inside" = "green", "Outside" = "red")) +
+#   ggplot2::geom_smooth(method = 'loess', formula = 'y~x') +
+#   ggplot2::facet_grid(rows= vars(IslandName), scales = "fixed") +
+#   ggplot2::labs(x = "Survey Year",
+#                 y = "P. helianthoides Biomass",
+#                 color = "Island Code", 
+#                 linetype = "Reserve Status",
+#                 caption = "Fig 3. Pycnopodia helianthoides by island and reserve status across all reference sites") +
+#   ggplot2::theme_classic() +
+#   ggplot2::theme(plot.caption = element_text(hjust = 0),
+#                  legend.justification = c(0, 0.5))
+# 
+# p9 <- ggplot(All_Benthic, aes(x = SurveyYear, y = Kelletia_kelletii, color= ReserveStatus)) +
+#   ggplot2::scale_color_manual(values = c("Inside" = "green", "Outside" = "red")) +
+#   ggplot2::geom_smooth(method = 'loess', formula = 'y~x') +
+#   ggplot2::facet_grid(rows= vars(IslandName), scales = "fixed") +
+#   ggplot2::labs(x = "Survey Year",
+#                 y = "K. kelletii Biomass",
+#                 color = "MPA Status", 
+#                 linetype = "Reserve Status",
+#                 caption = "Fig 3. Kelletia kelletii by island and reserve status across all reference sites") +
+#   ggplot2::theme_classic() +
+#   ggplot2::theme(plot.caption = element_text(hjust = 0),
+#                  legend.justification = c(0, 0.5))
+print(p7)
+# print(p8)
+# print(p9)
+
+``` 
+
+# Discussion
+
+placeholder for discussion of trends once we've fleshed this out
+
+# Literature Cited
+
+Rassweiler et al 2018 - conversions to kelp biomass
+
+# Appendix A. MPA Biomass over time for benthic species
+
+Estimated biomass by MPA status and Island
+
+```{r Benthic Biomass Summary, warning=FALSE, message=FALSE, fig.width=12, fig.height=15}
+All_Benthic2 <- All_Benthic %>% 
+  pivot_longer(cols = c(Lithopoma_gibberosa, Megastraea_undosa, Patiria_miniata, Strongylocentrotus_franciscanus, Strongylocentrotus_purpuratus, 
+                        Tegula_regina, Pisaster_giganteus, Crassedoma_giganteum, Haliotis_rufescens,             
+                        Kelletia_kelletii, Lytechinus_anamesus, Megathura_crenulata, Pycnopodia_helianthoides,       
+                        Tethya_aurantia, Stipe_Density, FSC, ShannonIndex), names_to = "ScientificName", values_to = "Biomass") %>%
+  dplyr::mutate(ScientificName = base::gsub('_', ' ', ScientificName)) %>% 
+  dplyr::filter(ScientificName != "ShannonIndex", ScientificName != "Stipe Density") %>% 
+  dplyr::group_by(ScientificName, IslandCode, SurveyYear, ReserveStatus) %>% 
+  dplyr::mutate(Biomass = sum(Biomass)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::distinct(ScientificName, IslandCode, SurveyYear, ReserveStatus, Biomass, .keep_all = TRUE)
+
+All_Benthic2$IslandName <- factor(All_Benthic2$IslandName, levels = MPA_Levels)
+
+ggplot2::ggplot(All_Benthic2, aes(x = SurveyYear, y = Biomass, fill = ScientificName)) +
+  ggplot2::geom_area(position = "stack", stat = "smooth") + # <=== Stat can be "identity" too
+  ggplot2::scale_x_continuous(breaks = 2005:Year_to_Filter_Data_by) +
+  ggplot2::scale_fill_manual(values = BenthicSpeciesColor, 
+                             guide = guide_legend(ncol = 4, title.hjust = .5, title.position = "top")) +
+  ggplot2::facet_grid(rows= vars(IslandName), cols = vars(ReserveStatus), scales = "fixed") +
+  ggplot2::labs(title = "Benthic Biomass Summary",
+                x = "Survey Year",
+                y = "Biomass (g/m²)",
+                fill = "Scientific Name") +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 18),
+                 plot.subtitle = element_text(hjust = 0.5, size = 16),
+                 legend.position = "bottom",
+                 plot.caption = element_text(hjust = 0),
+                 panel.border = element_rect(fill = FALSE),
+                 legend.justification = c(0, 0.5),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.title = element_text(size = 16),
+                 axis.text.y = element_text(size = 12),
+                 axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12),
+                 strip.text = element_text(size = 12, colour = "black"))
+```
+
+
+```{r Biomass Plots by Species, warning=FALSE, message=FALSE, fig.height=12, fig.width=10}
+
+j <- 1
+for (i in unique(All_Benthic2$ScientificName)) {
+  data <- All_Benthic2 %>%
+    dplyr::filter(ScientificName == i)
+  
+p12 <- ggplot2::ggplot(data, aes(x = SurveyYear, y = Biomass, color = ReserveStatus)) +
+  ggplot2::geom_smooth(method = 'loess', formula = 'y~x') +
+  ggplot2::scale_color_manual(values = c("Inside" = "green", "Outside" = "red")) +
+  ggplot2::facet_grid(rows= vars(IslandName), scales = "fixed") +
+  ggplot2::labs(title = i,
+                x = "Survey Year",
+                y = "Biomass (g/m²)",
+                color = "MPA Status", 
+                linetype = "Reserve Status",
+                caption = glue::glue("Fig {j}. {i} biomass by island and reserve status across all reference sites")) +
+  ggplot2::theme_classic() +
+  ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 18, face = "italic"),
+                 plot.subtitle = element_text(hjust = 0.5, size = 16),
+                 legend.position = "bottom",
+                 plot.caption = element_text(hjust = 0),
+                 panel.border = element_rect(fill = FALSE),
+                 legend.justification = c(0.5, 0.5),
+                 legend.title = element_text(size = 12, color = "black"),
+                 legend.text = element_text(size = 11, color = "black"),
+                 axis.title = element_text(size = 16),
+                 axis.text.y = element_text(size = 12),
+                 axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12),
+                 strip.text = element_text(size = 12, colour = "black"))
+print(p12)
+
+j <- j+1
+}
+```
+
+
+
+

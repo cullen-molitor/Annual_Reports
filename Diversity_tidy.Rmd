@@ -1,0 +1,150 @@
+---
+output:
+  word_document:
+    reference_docx: Meta_Data/template.docx
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = "Output_Documents") })
+---
+# Shannon Index
+
+Write text here
+
+```{r Data Cleaning, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("global_markdown.R")
+{ # 1 m DF     ----
+  oneM_Data <- readr::read_csv(
+    glue("Raw_DB_Files_SAVE_HERE/KFM_1mQuadrat_RawData_1982-{Export_END_Year}.txt"),   
+    col_types = cols(CountA = col_number(), CountB = col_number())) %>%
+    dplyr::filter(IslandCode != "CL") %>%
+    dplyr::left_join(siteInfo1) %>%
+    tidyr::separate(SurveyDate, c('Date','Time'),' ') %>%
+    dplyr::mutate(Date = as.Date(Date, format='%m/%d/%Y')) %>%
+    tibble::add_row(SiteNumber = 5, IslandCode = "SR", IslandName = "Santa Rosa Island", 
+                    SiteCode = "RR", SiteName = "Rodes Reef", Species = 9008, 
+                    ScientificName = "Lithopoma gibberosa", CommonName = "red turban snail", 
+                    SurveyYear = 1985, Date = as.Date("1985-08-27"), 
+                    QuadratNumber= 1:19, CountA = 0, CountB = NA,  ReserveStatus = "Outside", 
+                    MeanDepth = 44.77, Reference = FALSE) %>% 
+    tibble::add_row(SiteNumber = 5, IslandCode = "SR", IslandName = "Santa Rosa Island", 
+                    SiteCode = "RR", SiteName = "Rodes Reef", Species = 11001, 
+                    ScientificName = "Patiria miniata", CommonName = "bat star", 
+                    SurveyYear = 1985, Date = as.Date("1985-08-27"), 
+                    QuadratNumber = 20, CountA = 0, CountB = NA,  ReserveStatus = "Outside", 
+                    MeanDepth = 44.77, Reference = FALSE) %>% 
+    tidyr::pivot_longer(cols = c(CountA, CountB), values_to = "Count") %>% 
+    dplyr::filter(!is.na(Count), !is.na(CommonName),
+                  CommonName != "giant kelp stipes > 1m") %>% 
+    dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, Species, ScientificName,
+                  CommonName, SurveyYear, Date, QuadratNumber, Count, ReserveStatus, MeanDepth, Reference) %>% 
+    dplyr::group_by(SiteNumber, IslandCode, IslandName, SiteCode, SiteName,  ScientificName,
+                    SurveyYear, Date, ReserveStatus, MeanDepth, Reference) %>%
+    dplyr::summarise(Count_To_Reuse = Count,
+                     Area_Surveyed = dplyr::n(),
+                     Total_Count = base::sum(Count),
+                     Mean_Density = base::round(Total_Count / Area_Surveyed, 4), 
+                     SD = base::round(stats::sd(Count), 4),
+                     SE = base::round(SD / base::sqrt(Area_Surveyed), 4),
+                     Survey_Type = "One_Meter") %>% 
+    dplyr::ungroup() %>%  
+    dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, 
+                  ScientificName,SurveyYear, 
+                  Date, Total_Count, Mean_Density, SD, SE, Area_Surveyed, 
+                  Survey_Type, ReserveStatus, MeanDepth, Reference) %>%
+    dplyr::distinct(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, 
+                    Total_Count, Mean_Density, SD, SE, Area_Surveyed, .keep_all = TRUE)  %>% 
+    dplyr::filter(ScientificName != "Pisaster giganteus" | SurveyYear < 1996,
+                  ScientificName != "Macrocystis pyrifera" | SurveyYear < 1996,
+                  ScientificName != "Undaria pinnatifida",
+                  ScientificName != "Dictyoneuropsis reticulata/Agarum fimbriatum",
+                  ScientificName != "Haliotis rufescens",
+                  ScientificName != "Crassedoma giganteum",
+                  ScientificName != "Kelletia kelletii",
+                  ScientificName != "Parastichopus parvimensis",
+                  ScientificName != "Oxylebius pictus",
+                  ScientificName != "Pycnopodia helianthoides",
+                  ScientificName != "Lytechinus anamesus",
+                  ScientificName != "Sargassum horneri")
+} 
+
+{ # 5 m DF    ----
+  fiveM_Data <- readr::read_csv(
+    glue("Raw_DB_Files_SAVE_HERE/KFM_5mQuadrat_RawData_1982-{Export_END_Year}.txt")) %>%
+    tidyr::separate(SurveyDate, c('Date','Time'),' ') %>%
+    dplyr::filter(IslandCode != "CL") %>%
+    dplyr::left_join(siteInfo1) %>%
+    dplyr::mutate(Date = as.Date(Date, format='%m/%d/%Y')) %>%
+    dplyr::filter(!is.na(Count), !is.na(CommonName)) %>% 
+    dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, Species, ScientificName,
+                  CommonName, SurveyYear, Date, QuadratNumber, Count, ReserveStatus, MeanDepth, Reference) %>% 
+    dplyr::group_by(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName,
+                    SurveyYear, Date, ReserveStatus, MeanDepth, Reference) %>%
+    dplyr::summarise(Count_To_Reuse = Count,
+                     Area_Surveyed = dplyr::n() * 5,
+                     Total_Count = base::sum(Count),
+                     Mean_Density = base::round(Total_Count / Area_Surveyed, 4), 
+                     SD = base::round(stats::sd(Count), 4),
+                     SE = base::round(SD / base::sqrt(Area_Surveyed), 4),
+                     Survey_Type = "Five_Meter") %>% 
+    dplyr::ungroup() %>%  
+    dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName, 
+                  SurveyYear, Date, Total_Count, Mean_Density, SD, SE, Area_Surveyed, MeanDepth, 
+                  Survey_Type, ReserveStatus, Reference) %>%
+    dplyr::distinct(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, 
+                    ScientificName, SurveyYear, Total_Count, Mean_Density, SD, SE, Area_Surveyed, .keep_all = TRUE)  %>% 
+    dplyr::filter(ScientificName != "Pisaster giganteus" | SurveyYear < 2014,
+                  ScientificName != "Pisaster ochraceus" | SurveyYear < 2014,
+                  ScientificName != "Undaria pinnatifida") 
+  
+}
+
+{ # Band DF    ----
+  bands_Data <- read_csv(
+    glue("Raw_DB_Files_SAVE_HERE/KFM_BandTransect_RawData_1982-{Export_END_Year}.txt"),   
+    col_types = cols(CountA = col_number(), CountB = col_number())) %>%
+    dplyr::filter(IslandCode != "CL") %>%
+    dplyr::left_join(siteInfo1) %>%
+    tidyr::separate(SurveyDate, c('Date','Time'),' ') %>%
+    dplyr::mutate(Date = as.Date(Date, format='%m/%d/%Y')) %>%
+    tidyr::pivot_longer(cols = c(CountA, CountB), values_to = "Count") %>% 
+    dplyr::filter(!is.na(Count), !is.na(CommonName)) %>% 
+    dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, Species, ScientificName,
+                  CommonName, SurveyYear, Date, TransectNumber, Count, ReserveStatus, MeanDepth, Reference)  %>% 
+    dplyr::group_by(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName,
+                    SurveyYear, Date, ReserveStatus, MeanDepth, Reference) %>%
+    dplyr::summarise(Count_To_Reuse = Count,
+                     Area_Surveyed = dplyr::n() * 30,
+                     Total_Count = base::sum(Count),
+                     Mean_Density = base::round(Total_Count / Area_Surveyed, 4), 
+                     SD = base::round(stats::sd(Count), 4),
+                     SE = base::round(SD/base::sqrt(Area_Surveyed), 4),
+                     Survey_Type = "Bands") %>% 
+    dplyr::ungroup() %>% 
+    dplyr::select(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, Date,
+                  Total_Count, Mean_Density, SD, SE, Area_Surveyed, MeanDepth, Survey_Type, ReserveStatus, Reference) %>%
+    dplyr::distinct(SiteNumber, IslandCode, IslandName, SiteCode, SiteName, ScientificName,
+                    SurveyYear, Total_Count, Mean_Density, SD, SE, Area_Surveyed, .keep_all = TRUE) %>% 
+    dplyr::filter(ScientificName != "Sargassum horneri")
+  
+}
+
+{ # Benthic DF  ----
+  Benthic_Data <- base::rbind(oneM_Data, fiveM_Data, bands_Data) %>% 
+    dplyr::select(IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, Mean_Density, ReserveStatus, Reference) %>%
+    dplyr::filter(Reference == TRUE, SurveyYear > 2004, SiteCode != "KH") %>%
+    dplyr::mutate(Est_Total_Count = Mean_Density * 2000) %>% 
+    dplyr::group_by(IslandCode, IslandName, SiteCode, SiteName, ScientificName, SurveyYear, ReserveStatus) %>%
+    dplyr::summarise(Est_Total_Count = base::sum(Est_Total_Count)) %>%
+    dplyr::ungroup() %>% 
+    tidyr::pivot_wider(names_from = ScientificName, values_from = Est_Total_Count, values_fill = 0)
+}
+```
+
+```{r Shannon Index, include=FALSE}
+
+```
+
+```{r Shannon Index Plots, fig.height=11, fig.width=8}
+ggplot2::ggplot()
+```
+

@@ -1,0 +1,65 @@
+---
+output: 
+  word_document:
+    reference_docx: Meta_Data/template_temp.docx
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding,
+  output_dir = "Output_Documents") })
+---
+# Appendix NA Natural Habitat Size Frequency Data
+
+The temperature graphs are divided into a right graph and left graph. The left graph displays the mean daily temperature, as well as the daily temperature range, for the current year. The right graph displays temperature values for the current year compared to past years. Blue diamonds indicate the mean monthly temperatures for the current year. Violin plots indicate the distribution of all past years monthly mean temperature values. If more than seven days of temperature values are missing from any month, due to instrument loss or failure, all temperature values for that particular month/year are excluded. Graphs are ordered by site longitude, from west to east.
+
+```{r NHSF setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("global_markdown.R")
+siteInfo1 <- siteInfo1 %>% arrange(Longitude)
+
+nhsf_Raw <- readr::read_csv("Tidy_Data_Dont_Touch/NHSF_Raw_Tidy.csv")
+
+nhsf_Raw$SiteNumber <- factor(nhsf_Raw$SiteNumber, levels = c(1:16, 21:33))
+nhsf_Raw$SurveyYear <- factor(nhsf_Raw$SurveyYear, levels = 1985:2019)
+nhsf_Raw$CommonName <- factor(nhsf_Raw$CommonName, levels = unique(nhsf_Raw$CommonName))
+```
+```{r Boxplots, warning=FALSE, message=FALSE, fig.width=12, fig.height=8}
+for (site in levels(nhsf_Raw$SiteNumber)) {
+  nhsf_filtered <- nhsf_Raw %>%
+    dplyr::filter(SiteNumber == site) %>% 
+      base::droplevels()
+  for (i in levels(nhsf_filtered$CommonName)) {
+    nhsf_filtered_raw <- nhsf_filtered %>%
+      dplyr::filter(CommonName == i) %>% 
+      dplyr::group_by(SurveyYear) %>% 
+      dplyr::mutate(Mean_Size = mean(Size_mm), Total_Count = dplyr::n()) %>% 
+      dplyr::ungroup() 
+    
+    p1 <- ggplot2::ggplot(data = nhsf_filtered_raw, aes(x = SurveyYear)) +
+      ggplot2::geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), adjust = .75, size = 1, 
+                           aes(y = Size_mm, fill = CommonName)) +
+      ggplot2::geom_point(shape = 23, size = 2, stroke = 2,
+                          aes(y = Mean_Size, color = CommonName), fill = "white") +
+      ggplot2::geom_label(aes(y = 0, label = Total_Count), fill = "white") +
+      ggplot2::scale_x_discrete(drop = FALSE) +
+      ggplot2::labs(title = nhsf_filtered_raw$ScientificName,  
+                    subtitle = nhsf_filtered_raw$SiteName,
+                    x = "Survey Year", y = "Size Distribution",
+                    color = NULL, fill = NULL) +
+      ggplot2::scale_fill_manual(values = SpeciesColor) +
+      ggplot2::scale_color_manual(values = "blue", labels = "Mean Size") +
+      ggpubr::theme_classic2() +
+      ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 22, face = "bold.italic"),
+                     plot.subtitle = element_text(hjust = 0.5, size = 16, face = "bold"),
+                     legend.position = "bottom",
+                     panel.grid.major = element_line(),
+                     legend.justification = c(0.5,0.5),
+                     legend.key.width = unit(.75, "cm"),
+                     legend.background = element_rect(size = unit(5, "cm")),
+                     legend.title = element_text(size = 12, color = "black"),
+                     legend.text = element_text(size = 11, colour = "black"),
+                     axis.text.y = element_text(size = 12, face = "bold"),
+                     strip.text = element_text(size = 12, colour = "black", angle = 90),
+                     axis.title = element_text(size = 14, face = "bold"),
+                     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12, face = "bold"))
+    print(p1)
+  }
+}
+```
